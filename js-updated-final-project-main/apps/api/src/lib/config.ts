@@ -7,6 +7,7 @@ export const config = {
   webOrigin: process.env.WEB_ORIGIN || "http://localhost:3000",
   jwtSecret: process.env.JWT_SECRET || "local-dev-secret-change-me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || "local-dev-refresh-secret-change-me",
   sessionCookieName: process.env.SESSION_COOKIE_NAME || "dsr_session",
   isProduction: process.env.NODE_ENV === "production",
   localFileStorage: process.env.LOCAL_FILE_STORAGE !== "false",

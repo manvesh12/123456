@@ -11,13 +11,19 @@ export function redisConnection() {
   };
 }
 
-export const pdfQueue = new Queue("pdf-jobs", { connection: redisConnection() });
-export const excelQueue = new Queue("excel-jobs", { connection: redisConnection() });
+const defaultJobOptions = {
+  attempts: 3,
+  backoff: { type: "exponential", delay: 1000 },
+  removeOnComplete: 100,
+  removeOnFail: 1000 // Keep more failures for DLQ investigation
+};
 
-pdfQueue.on("error", (error) => {
-  console.warn("PDF queue connection error:", error.message);
-});
+export const pdfQueue = new Queue("pdf-jobs", { connection: redisConnection(), defaultJobOptions });
+export const excelQueue = new Queue("excel-jobs", { connection: redisConnection(), defaultJobOptions });
+export const auditQueue = new Queue("audit-jobs", { connection: redisConnection(), defaultJobOptions });
+export const notificationsQueue = new Queue("notifications-jobs", { connection: redisConnection(), defaultJobOptions });
 
-excelQueue.on("error", (error) => {
-  console.warn("Excel queue connection error:", error.message);
-});
+pdfQueue.on("error", (error) => console.warn("PDF queue connection error:", error.message));
+excelQueue.on("error", (error) => console.warn("Excel queue connection error:", error.message));
+auditQueue.on("error", (error) => console.warn("Audit queue connection error:", error.message));
+notificationsQueue.on("error", (error) => console.warn("Notifications queue connection error:", error.message));

@@ -35,6 +35,8 @@ export async function putPdf(objectKey: string, bytes: Buffer) {
   );
 }
 
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 export async function getPdf(objectKey: string) {
   if (config.localFileStorage) {
     return fs.readFile(path.join(uploadsDir, objectKey.replace(/[\\/]/g, "_")));
@@ -43,6 +45,15 @@ export async function getPdf(objectKey: string) {
   const response = await s3.send(new GetObjectCommand({ Bucket: config.s3Bucket, Key: objectKey }));
   if (!response.Body) throw new Error("Empty object");
   return streamToBuffer(response.Body as Readable);
+}
+
+export async function getSignedDownloadUrl(objectKey: string, expiresIn = 3600) {
+  if (config.localFileStorage) {
+    // In local dev, we might just return an API route path that streams the file
+    return `/api/files/download/${encodeURIComponent(objectKey)}`;
+  }
+  const command = new GetObjectCommand({ Bucket: config.s3Bucket, Key: objectKey });
+  return await getSignedUrl(s3, command, { expiresIn });
 }
 
 export async function deletePdf(objectKey: string) {

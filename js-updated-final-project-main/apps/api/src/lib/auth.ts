@@ -14,6 +14,8 @@ declare global {
   }
 }
 
+import { rolePermissions, type Permission } from "./permissions.js";
+
 export function roleToFrontend(role: Role) {
   const reviewerRoles: Role[] = [Role.REVIEWER, Role.REVIEWER_1, Role.REVIEWER_2, Role.IIT_ROPAR, Role.GIS];
   if (role === Role.ADMIN || role === Role.STATE_ADMIN) return "admin";
@@ -23,13 +25,8 @@ export function roleToFrontend(role: Role) {
   return "user";
 }
 
-export function permissionsFor(role: Role) {
-  const reviewerRoles: Role[] = [Role.REVIEWER, Role.REVIEWER_1, Role.REVIEWER_2, Role.IIT_ROPAR, Role.GIS, Role.DISTRICT_OWNER];
-  const uploaderRoles: Role[] = [Role.OFFICER, Role.SDLC, Role.SDO, Role.JE, Role.AXEN];
-  if (role === Role.ADMIN || role === Role.STATE_ADMIN) return ["UPLOAD", "REVIEW", "ADMIN"];
-  if (reviewerRoles.includes(role)) return ["REVIEW"];
-  if (uploaderRoles.includes(role)) return ["UPLOAD"];
-  return [];
+export function permissionsFor(role: Role): string[] {
+  return rolePermissions[role] || [];
 }
 
 export function signToken(user: AuthUser) {
@@ -73,11 +70,11 @@ export function requireAnyRole(roles: Role[]) {
 }
 
 export function canUpload(role: Role) {
-  return permissionsFor(role).includes("UPLOAD") || permissionsFor(role).includes("ADMIN");
+  return permissionsFor(role).includes("submit_reports") || role === Role.ADMIN || role === Role.STATE_ADMIN;
 }
 
 export function canReview(role: Role) {
-  return permissionsFor(role).includes("REVIEW") || permissionsFor(role).includes("ADMIN");
+  return permissionsFor(role).includes("approve_reports") || role === Role.ADMIN || role === Role.STATE_ADMIN;
 }
 
 export function canAdmin(role: Role) {

@@ -28,7 +28,17 @@ const cookieOptions = {
   maxAge: 15 * 60 * 1000
 };
 
+const refreshTokenCookieOptions = {
+  httpOnly: true,
+  secure: config.isProduction,
+  sameSite: "strict" as const,
+  path: "/api/auth/refresh",
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+};
+
 export const authRouter = Router();
+
+import crypto from "crypto";
 
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
@@ -51,7 +61,19 @@ authRouter.post("/login", async (req, res) => {
   }
 
   const token = signToken(user);
+  
+  const refreshTokenStr = crypto.randomBytes(40).toString("hex");
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshTokenStr,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + refreshTokenCookieOptions.maxAge)
+    }
+  });
+
   res.cookie(config.sessionCookieName, token, cookieOptions);
+  res.cookie("dsr_refresh_token", refreshTokenStr, refreshTokenCookieOptions);
+  
   recordAudit(req, "AUTH_LOGIN_SUCCESS", { username: user.username, role: user.role }, 200);
   res.json(
     jsonSafe({
@@ -72,8 +94,46 @@ authRouter.post("/login", async (req, res) => {
   );
 });
 
+authRouter.post("/refresh", async (req, res) => {
+  const refreshTokenStr = req.cookies?.["dsr_refresh_token"];
+  if (!refreshTokenStr) {
+    res.status(401).json({ error: "No refresh token provided" });
+    return;
+  }
+
+  const rt = await prisma.refreshToken.findUnique({
+    where: { token: refreshTokenStr },
+    include: { user: true }
+  });
+
+  if (!rt || rt.revoked || rt.expiresAt < new Date() || !rt.user.active) {
+    if (rt) {
+      await prisma.refreshToken.update({
+        where: { id: rt.id },
+        data: { revoked: true }
+      });
+    }
+    res.clearCookie("dsr_refresh_token", { path: "/api/auth/refresh" });
+    res.status(401).json({ error: "Invalid refresh token" });
+    return;
+  }
+
+  const token = signToken(rt.user);
+  res.cookie(config.sessionCookieName, token, cookieOptions);
+  res.json({ token, success: true });
+});
+
 authRouter.post("/logout", async (req, res) => {
+  const refreshTokenStr = req.cookies?.["dsr_refresh_token"];
+  if (refreshTokenStr) {
+    await prisma.refreshToken.updateMany({
+      where: { token: refreshTokenStr },
+      data: { revoked: true }
+    });
+  }
+
   res.clearCookie(config.sessionCookieName, { path: "/" });
+  res.clearCookie("dsr_refresh_token", { path: "/api/auth/refresh" });
   recordAudit(req, "AUTH_LOGOUT", undefined, 200);
   res.json({ success: true });
 });

@@ -17,6 +17,46 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo Setting up environment variables...
+if not exist "%~dp0.env" (
+  copy "%~dp0.env.example" "%~dp0.env" >nul
+)
+if not exist "%~dp0apps\api\.env" (
+  copy "%~dp0.env.example" "%~dp0apps\api\.env" >nul
+)
+if not exist "%~dp0apps\web\.env" (
+  copy "%~dp0.env.example" "%~dp0apps\web\.env" >nul
+)
+
+if not exist "%~dp0node_modules\" (
+  echo Initializing project and installing dependencies...
+  echo This might take a few minutes for the first time.
+  call npm install
+  if errorlevel 1 (
+    echo npm install failed. Please check your internet connection or npm setup.
+    pause
+    exit /b 1
+  )
+)
+
+echo Starting Docker containers (Postgres, Redis, MinIO)...
+docker-compose up -d
+if errorlevel 1 (
+  echo Docker Compose failed. Please ensure Docker Desktop is running.
+  pause
+  exit /b 1
+)
+
+echo.
+echo Waiting for database to be ready...
+timeout /t 5 /nobreak >nul
+
+echo Setting up Database (Prisma Generate, Migrate, Seed)...
+call npm run prisma:generate
+call npm run prisma:migrate
+call npm run seed
+
+echo.
 echo Starting Backend API Server...
 start "DSR API Server" cmd /k "cd /d ""%~dp0"" && npm run dev:api"
 
@@ -26,26 +66,11 @@ start "DSR Background Worker" cmd /k "cd /d ""%~dp0"" && npm run dev:worker"
 echo Starting Modern Next.js Frontend...
 start "DSR Next.js Frontend" cmd /k "cd /d ""%~dp0"" && npm run dev:web"
 
-cd /d "%~dp0apps\web\public\legacy"
-
-echo Building static legacy portal files...
-node build.js
-if errorlevel 1 (
-  echo Build failed.
-)
-
 echo.
-echo Starting lightweight local legacy portal on http://localhost:8081 ...
-start "DSR Legacy Simple Portal" cmd /k "cd /d ""%~dp0apps\web\public\legacy"" && set DSR_NO_WATCH=1&& node server.js"
-
-echo.
-echo Waiting for services to start...
+echo Waiting for frontend to start...
 timeout /t 5 /nobreak >nul
 
-echo Opening the legacy portal...
-start http://localhost:8081/home.html
-
-echo Opening the Next.js modern frontend...
+echo Opening the modern frontend...
 start http://localhost:3000
 
 echo.

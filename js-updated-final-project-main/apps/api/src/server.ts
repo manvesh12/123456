@@ -36,10 +36,34 @@ app.use(
 app.use(cors({ origin: config.webOrigin, credentials: true }));
 app.use(apiLimiter);
 app.use(cookieParser());
-app.use(express.json({ limit: "300mb" }));
-app.use(morgan("dev"));
+app.use(express.json({ limit: "10mb" }));
+import { prisma } from "./lib/prisma.js";
+import { redisConnection } from "./jobs/queues.js";
+import Redis from "ioredis";
+
+morgan.token("userId", (req: any) => req.user?.id?.toString() || "guest");
+app.use(morgan(":method :url :status :res[content-length] - :response-time ms - user::userId - ip::remote-addr"));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+app.get("/live", (_req, res) => res.json({ status: "up" }));
+
+app.get("/ready", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const redisUrl = new URL(config.queueRedisUrl);
+    const redis = new Redis(Number(redisUrl.port || 6379), redisUrl.hostname, {
+      maxRetriesPerRequest: 1,
+      connectTimeout: 1000
+    });
+    await redis.ping();
+    await redis.quit();
+    res.json({ status: "ready", db: "ok", redis: "ok" });
+  } catch (e: any) {
+    res.status(503).json({ status: "error", message: e.message });
+  }
+});
+
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth", authRouter);
