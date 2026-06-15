@@ -22,7 +22,8 @@ export const rolePermissions: Record<Role, Permission[]> = {
   SDO: ["view_block", "submit_reports"],
   JE: ["view_block", "submit_reports"],
   AXEN: ["view_block", "submit_reports"],
-  GIS: ["view_all", "submit_reports"]
+  GIS: ["view_all", "submit_reports"],
+  OFFICER: ["view_district", "submit_reports"]
 };
 
 export const hasPermission = (role: Role, permission: Permission) => {
