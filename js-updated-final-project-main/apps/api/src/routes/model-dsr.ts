@@ -178,8 +178,75 @@ modelDsrRouter.delete("/:id", async (req, res) => {
 });
 
 // ==========================================
-// DSR GENERATION 
+// DSR GENERATION & IMPORT
 // ==========================================
+
+// Import Model DSR into an Existing Project (Step 4 & 5 auto mapping)
+modelDsrRouter.post("/:id/import", async (req, res) => {
+  try {
+    const { id } = req.params; // Model DSR ID
+    const { projectId, config } = req.body;
+
+    if (!projectId) {
+      return res.status(400).json({ error: "projectId is required" });
+    }
+
+    const template = await prisma.modelDsr.findUnique({ 
+      where: { id },
+      include: { sections: true }
+    });
+
+    if (!template) {
+      return res.status(404).json({ error: "Model DSR not found" });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: BigInt(projectId) }
+    });
+
+    if (!project) {
+      return res.status(404).json({ error: "Target Project not found" });
+    }
+
+    // Parse current project state
+    let state: any = {};
+    if (project.projectState) {
+      try {
+        state = JSON.parse(project.projectState);
+      } catch (e) {
+        state = {};
+      }
+    }
+
+    // Step 9: Backup data before overriding
+    if (config?.backupCurrent) {
+      state.__backup = JSON.parse(JSON.stringify(state)); // deep copy
+      // Also clean any previous nested backups to prevent exponential growth
+      if (state.__backup.__backup) delete state.__backup.__backup;
+    }
+
+    // Step 6: Data Copy Rules
+    if (config?.replaceChapters) {
+      state.importedChapters = template.sections.filter(s => !s.sectionName.toLowerCase().includes('annexure'));
+      state.modelDsrImported = true;
+      state.modelDsrId = template.id;
+    }
+
+    if (config?.replaceAnnexures) {
+      state.importedAnnexures = template.sections.filter(s => s.sectionName.toLowerCase().includes('annexure'));
+    }
+
+    // Save updated state
+    await prisma.project.update({
+      where: { id: BigInt(projectId) },
+      data: { projectState: JSON.stringify(state) }
+    });
+
+    res.json(jsonSafe({ message: "Import successful", projectId: project.id.toString() }));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Generate Final DSR by merging Payload with Template
 modelDsrRouter.post("/generate", async (req, res) => {

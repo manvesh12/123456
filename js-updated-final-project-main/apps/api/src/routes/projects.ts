@@ -106,6 +106,38 @@ projectsRouter.post("/", async (req, res) => {
   res.status(201).json(jsonSafe(toProjectDto(created)));
 });
 
+projectsRouter.post("/:id/rollback", async (req, res) => {
+  try {
+    const id = parseBigIntParam(req.params.id, res, "project id");
+    if (!id) return;
+
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    if (!project.projectState) {
+      return res.status(400).json({ error: "No state to rollback" });
+    }
+
+    let state = JSON.parse(project.projectState);
+    if (!state.__backup) {
+      return res.status(400).json({ error: "No backup available to rollback to" });
+    }
+
+    const backupState = state.__backup;
+
+    await prisma.project.update({
+      where: { id },
+      data: { projectState: JSON.stringify(backupState) }
+    });
+
+    res.json(jsonSafe({ message: "Rolled back successfully", projectState: backupState }));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 projectsRouter.post("/:id/phases", async (req, res) => {
   if (!canAdmin(req.user!.role)) {
     res.status(403).json({ error: "Only Administrators can initiate the next phase." });

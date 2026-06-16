@@ -2445,15 +2445,29 @@
               </div>
               
               <div style="display:flex; gap:12px; margin-top:8px;">
-                <button class="btn btn-primary" onclick="alert('Model DSR Uploaded successfully!')">Upload & Save Draft</button>
-                <button class="btn btn-saffron" onclick="alert('Model DSR Published!')">Publish to Production</button>
-              </div>
-            </div>
-          </div>
+  <button class="btn btn-primary" id="btn-model-dsr-upload">Upload & Select Target Project</button>
+  <button class="btn btn-outline" id="btn-model-dsr-save-only">Save as Draft (No Import)</button>
+  </div>
 
-          <div class="card">
-            <div class="card-hd">
-              <div class="card-title">Model DSR Version History</div>
+<div class="card" style="margin-bottom: 24px;">
+<div class="card-hd">
+<div class="card-title">Rollback Center</div>
+</div>
+<div class="card-bd">
+<p style="font-size: 14px; color: var(--text-mid); margin-bottom: 12px;">Restore a project to its state before the last Model DSR import.</p>
+<div style="display:flex; gap:12px; align-items:flex-end;">
+<div class="field" style="margin:0;">
+<label>Project ID to Rollback</label>
+<input type="number" id="mdsr-rollback-id" placeholder="Enter Project ID" class="input" style="width: 200px;">
+</div>
+<button class="btn btn-saffron" id="btn-mdsr-rollback">Undo Last Import</button>
+</div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-hd">
+<div class="card-title">Model DSR Version History</div>
             </div>
             <div class="card-bd" style="padding: 0;">
               <table class="table" style="width: 100%; text-align: left; border-collapse: collapse;">
