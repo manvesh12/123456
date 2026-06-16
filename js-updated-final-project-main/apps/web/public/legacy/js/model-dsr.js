@@ -197,12 +197,15 @@ async function fetchTargetProjects(district) {
 
   try {
     const data = await apiFetch('/projects');
-    const validStatuses = ['IN_PROGRESS', 'IN PROGRESS', 'ACTIVE', 'DRAFT'];
     const projects = Array.isArray(data?.data) ? data.data : data;
     const filtered = (projects || []).filter((project) => {
-      const matchesDistrict = String(project.district || '').toLowerCase() === String(district || '').toLowerCase();
-      return matchesDistrict && validStatuses.includes(String(project.status || '').toUpperCase());
-    });
+        const projDistrict = String(project.district || '').trim().toLowerCase();
+        const targetDistrict = String(district || '').trim().toLowerCase();
+        const matchesDistrict = projDistrict === targetDistrict;
+        const projStatus = String(project.status || '').trim().toUpperCase().replace(/_/g, ' ');
+        const validStatuses = ['IN PROGRESS', 'ACTIVE', 'DRAFT'];
+        return matchesDistrict && validStatuses.includes(projStatus);
+      });
 
     if (!filtered.length) {
       listEl.innerHTML = `<div style="padding: 12px; color: var(--text-mid); background: #f8fafc; border-radius: 4px;">No ongoing projects found for ${escapeHtml(district)}. Please create a project first.</div>`;
